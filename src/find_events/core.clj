@@ -17,6 +17,12 @@
 (defn fhm  "" [v] (format "%2d:%02d " (:hour v) (:minute v)) )
 
 
+;;2018    3-20 11:15    6-21  5:07    9-22 20:54   12-21 16:22
+;;2018	Mar 20 11:15§	Jun 21 05:07§	Sep 22 20:54§	Dec 21 16:22
+
+;;Ls-MacBook-Air:toys EdV$ ./planck -m dt.equinox 2018
+;;2018
+;;3-20 11:14:45    6-21 5:6:42    9-22 20:53:41    12-21 16:21:52
 
 (defn printES "" [y]
   (let [es  (ef/getEquinoxesAndSolsticesByYear y obs) ]
@@ -105,22 +111,12 @@
 
 
 (defn -main ""  [& args]
-  (let [y  ((vec args) 0)]
-    (printES y)
-    (println)
-    (yearlyByMonth y)
-    (println)
-    (yearlyByWeek day-detail y)
-    (println)
-    (monthlyByDay day-detail y 9)
+  (let [rva (vec (map read-string args)) ] ;; y   y m   y m d
+    (case (count rva)
+      1  (do (printES (rva 0) )  (println)  (yearlyByWeek day-detail (rva 0)) )
+      2  (do (println (rva 0))  (yearlyByMonth (rva 0))  (println)
+             (monthlyByDay day-detail (rva 0) (rva 1)) )
+      3  (do (println (rva 0))  (day-detail (rva 0) (rva 1) (rva 2)) )
+      )
     )
-  
-;;2018    3-20 11:15    6-21  5:07    9-22 20:54   12-21 16:22  
-
-;;2018	Mar 20 11:15§	Jun 21 05:07§	Sep 22 20:54§	Dec 21 16:22
-  
-;;Ls-MacBook-Air:toys EdV$ ./planck -m dt.equinox 2018
-;;2018
-;;3-20 11:14:45    6-21 5:6:42    9-22 20:53:41    12-21 16:21:52
-
-)
+  )
