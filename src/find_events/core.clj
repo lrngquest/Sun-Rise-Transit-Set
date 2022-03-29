@@ -113,7 +113,7 @@
 (defn -main ""  [& args]
   (let [rva (vec (map read-string args)) ] ;; y   y m   y m d
     (case (count rva)
-      1  (do (printES (rva 0) )  (println)  (yearlyByWeek day-detail (rva 0)) )
+      1  (do (printES (rva 0) )  (println)  (yearlyByDay day-detail (rva 0)) )
       2  (do (println (rva 0))  (yearlyByMonth (rva 0))  (println)
              (monthlyByDay day-detail (rva 0) (rva 1)) )
       3  (do (println (rva 0))  (day-detail (rva 0) (rva 1) (rva 2)) )
