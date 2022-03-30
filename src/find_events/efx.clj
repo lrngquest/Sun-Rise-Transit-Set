@@ -2,7 +2,8 @@
 	(:require [find-events.const :as cn] ) 
 	(:require [find-events.mthu  :as m] )
 	(:require [find-events.ssetc :as ss] )
-        (:require [find-events.dates :as da] ) )
+        (:require [find-events.dates :as da] )
+        (:require [find-events.ut2tdb :as u]) )
 
 
 (defn getDSTfacts "" [year month day]  ;;refactor to avoid multi calls?
@@ -21,17 +22,16 @@
   )
 
 
-(defn getXAtZ "" [zeroSeekFn tolerance maxI  xy]
+(defn getXAtZ "" [zeroSeekFn tolerance maxI  [x1 y1 x2 y2]]   ;; vec des.
   ;; repeatedly steps zeroFinder logic, injecting specific zeroSeekingFn
-
-  (let [[x1 y1 x2 y2]  xy]
-    (loop [iterCount  1
-           statev     (zfInner zeroSeekFn [x1 y1 x2 y2  0 0] ) ]
- ;;    (println "iterCount "iterCount " y "(statev 4) )
-     (if (or (<= (Math/abs (statev 4)) tolerance)  (>= iterCount maxI))
-       (statev 5) ;; thus return x
-       (recur     (inc iterCount)   (zfInner zeroSeekFn statev)) ) )  )
-  )
+  ((reduce
+    (fn [statev v]
+      (if (<= (Math/abs (double (statev 4))) tolerance)
+        (reduced statev)
+        (zfInner zeroSeekFn statev) )   )
+    (zfInner zeroSeekFn [x1 y1 x2 y2  0 0] ) ;; init statev
+    (range (inc maxI)) ) 5)
+  )  ;; -----------------^  as per original, _BOTH_ paths return (statev 5) !
 
 
 
@@ -83,7 +83,7 @@
         gHPX        (partial gHP planet obs)  ;;time only remaning param
         zsfRS       (partial gaHP targetAlt planet obs) ;; x
 
-        dfl    (case minsInDay 1380 v1380  1440 v1440  1500 v1500 )
+        dfl    (case (int minsInDay) 1380 v1380  1440 v1440  1500 v1500 )
 
         times           (vec (map + (repeat 7 startOfDay)  dfl))
         [t0 t1 t2 t3 t4 t5 t6]     times
@@ -105,9 +105,6 @@
   )
 
 
-(defn gAHw "wrap and reorder params" [planet obs flags timeJDU]
-  (ss/getHourAngle planet timeJDU obs flags) )
-
 (defn ffn "TT filter" [quad] (and (<= (quad 1) 0.0) (> (quad 3) 0.0) ) )
 
 
@@ -118,18 +115,18 @@
 
         minutesInDay    1440.0 ;;use minsInDay?? TODO
 
-        getHourAngleX   (partial  gAHw planet obs ss/SIGNED_HOUR_ANGLE)
+        getHourAngl   (partial ss/getHourAngle planet obs ss/SIGNED_HOUR_ANGLE)
         
         times           (vec (map + (repeat 6 startOfDay)
                                   '(0 0.2 0.4 0.6 0.8 1.0)))
         [t0 t1 t2 t3 t4 t5]         times
-        [ha0 ha1 ha2 ha3 ha4 ha5]   (vec (map getHourAngleX times)) 
+        [ha0 ha1 ha2 ha3 ha4 ha5]   (vec (map getHourAngl times)) 
 
         tHap [ [t0 ha0 t1 ha1]  [t1 ha1 t2 ha2]  [t2 ha2 t3 ha3]
                [t3 ha3 t4 ha4]  [t4 ha4 t5 ha5]  ]
 
         sTsAeTeA        (first (filter ffn tHap))
-        eventTime       (getXAtZ getHourAngleX 0.0001 8  sTsAeTeA)
+        eventTime       (getXAtZ getHourAngl 0.0001 8  sTsAeTeA)
         
         ;;ASSERT (>= (getHorizontalPosition ...)  minAltRad) ==>always accepted
 
@@ -153,8 +150,8 @@
         [DSToffs minsInDay]   (getDSTfacts y m d)
         tzOffs     (- 0 (:TZoffs obs))
         startDay   (da/getJD y m d 0 (- tzOffs DSToffs) -30.0)
-        startOfDay (ss/UT_to_TDB startDay)
-        endOfDay   (ss/UT_to_TDB (+ startDay (/ minsInDay 1440.0)))
+        startOfDay (u/UT_to_TDB startDay)
+        endOfDay   (u/UT_to_TDB (+ startDay (/ minsInDay 1440.0)))
 
         loLong0    (ss/getLongitudeDeg
                     (ss/getEclipticPosition ss/SUN startOfDay ss/AbrrNut) )
@@ -171,12 +168,12 @@
       (createEventAtHourOffset y m d minsInDay eventTm es 0 obs)   "") )
   )
 
-(defn iterESdays "" [obs year month]
-  (loop [day 19    event (getEquinoxSolsticeEvent year month day obs) ]
-    (if (or (not= "" event) (> day 23))
-      event
-      (recur  (inc day)  (getEquinoxSolsticeEvent year month day obs) ) )  )
-  )
+
+(defn iterESdays [obs year month]
+  (reduce  (fn [acc day] ;; accum current-item
+             (let [e  (getEquinoxSolsticeEvent year month day obs) ]
+               (if (not= "" e) (reduced e)  acc) ) )
+           []     [19 20 21 22 23]  )  )   ;;init-val  coll to op. on
 
 (defn getEquinoxesAndSolsticesByYear "" [year obs]
   (vec (map (partial iterESdays obs year) '(3 6 9 12) ))  )

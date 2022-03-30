@@ -2,40 +2,9 @@
 	(:require [find-events.const :as cn] ) 
 	(:require [find-events.mthu  :as m] )
 	(:require [find-events.vsp   :as v] )
-        (:require [find-events.nuterms :as n]))
+        (:require [find-events.nuterms :as n])
+        (:require [find-events.ut2tdb :as u]) )
 
-
-
-;; from o.s.a.UTConvertor
-  ;; table for compatibility testing -- more current values available
-  ;; from  http://stjarnhimlen.se/comp/time.html
-;;Many simplifcations made
-;; - recent years (i.e. after 1599) ==> span:1 in table values
-;; - span:1 ==> tableMidYear : year
-;; - above ==> n : 0  ==> dt2  is sole remaining term
-(defn hDT "ala historicDeltaT 2000..2014" [y]
-  (let [iy   (int y)
-        yx   (if (> iy 2014) 0  (- iy 2000))
-        ret   ( nth [63.82  64.09  64.30  64.47  64.57  64.68  64.84   65  65  66   66  66  67  69  71  ] yx)    ]
-    ret) )
-
-(defn getDeltaTatJulianDate "" [ timeJDE]
-  (let [year  (+ (/ (- timeJDE cn/JD_J2000) 365.25) 2000.0)
-        t     (/ (- year 2000) 100.0)
-        dta   (+ 102.0 (* 102.0 t) (* 25.3 t t))
-        dt3   (if (and (> year 2014) (< year 2100)) ;;off-end of table
-                (+ dta (* 0.5161 (- year 2100.0)) )
-                (hDT year) )  ]
-   dt3)
-  )
-  
-(defn UT_to_TDB "" [timeJDU]
-  (loop [timeJDE timeJDU   i 0]
-    (if (= i 5)
-      timeJDE
-      (recur  (+ timeJDU (/ (getDeltaTatJulianDate timeJDE) 86400.0))
-              (inc i) ) ) )
-  )
 
 
 ;; from o.s.m.Angle  -- orig. 1 member
@@ -72,21 +41,20 @@
 (defn getDeclinationDeg ""    [pos]  (getLatitudeDeg  pos) )
 (defn getAltDeg ""            [pos]  (* cn/R2Deg (:latitude  pos)) )
 
-;; from o.s.a.Ecliptic  -- orig. 0 members; class only to permit cache?
+;; from o.s.a.Ecliptic
 
 (defn NUinnerPsi "calc 1 term of psi,epsilon" [T D M M1 F Q  term]
   (let [[fD fM fM1 fF fQ cs0 cs1 cc0 cc1]  term
         arg    (+ (* D fD) (* M fM) (* M1 fM1) (* F fF) (* Q fQ))
         dpsi   (* (m/sinDeg arg)  (+ cs0 (* cs1 T)))  ]
-    dpsi)
-  )
+    dpsi)  )
 
 (defn NUinnerEps "calc 1 term of psi,epsilon" [T D M M1 F Q  term]
   (let [[fD fM fM1 fF fQ cs0 cs1 cc0 cc1]  term
         arg    (+ (* D fD) (* M fM) (* M1 fM1) (* F fF) (* Q fQ))
         deps   (* (m/cosDeg arg)  (+ cc0 (* cc1 T)))   ]
-    deps)
-  )
+    deps)  )
+
 
 (defn NU "calc psi,epsilon over all (63) terms" [MO T ]
   (let [T2  (* T T)      T3   (* T2 T)
@@ -101,26 +69,26 @@
         rdeps  (v/aAS2Rad (/ deps 10000.0))  ]
      ;; output full nutation based on inuut  MeanObliquity and series calc.
 ;    (println "NU rdpsi"rdpsi )
-    [ rdpsi rdeps (+ (MO 2) rdeps)] )
-  )
+    [ rdpsi rdeps (+ (MO 2) rdeps)] )  )
 
 
 (def NUTATED 0)   (def MEAN_OBLIQUITY 1)
 
-(defn getNutation "only modes: MEAN_OBLIQUITY NUTATED"  [timeJDE mode]
+(defn getNutationMO  "subset -- MEAN_OBLIQUITY only !"  [timeJDE]
   (let [T      (/ (- timeJDE cn/JD_J2000) 36525.0)
         coeff  [-4680.93 -1.55 1999.25 -51.38 -249.67
                   -39.05  7.12   27.87   5.79    2.45]
-        nuMO   (loop  [e 23.43929111    U (/ T 100.0)    i 0]
-                 (if (= (count coeff) i)
-                   [0.0 0.0  (* cn/D2Rad e)];;delta_psi delta_epsilon obliquity
-                   (recur
-                    (+ e (/ (* (coeff i) U ) 3600.0) )   (* U U)   (inc i) )
-                   ) )  ;; always do MEAN_OBLIQUITY calc.
-        out    (if (= mode NUTATED)  (NU nuMO T)  nuMO) ]
-;(when (= mode NUTATED) (println " moNU fullNU"nuMO" "out))
-    out)
-  )
+        [e U]  (reduce  (fn [[ae aU] v]
+                          [ (+ ae (/ (* v aU ) 3600.0) )   (* aU aU) ]   )
+                        [ 23.43929111  (/ T 100.0) ]    coeff)             ]
+    [0.0  0.0  (* cn/D2Rad e)]  )   )
+
+
+(defn getNutation "only modes: MEAN_OBLIQUITY NUTATED"  [timeJDE mode]
+  (let [nuMO   (getNutationMO timeJDE) ] ;; always do MEAN_OBLIQUITY calc.
+    (if (= mode NUTATED)
+                 (NU  nuMO  (/ (- timeJDE cn/JD_J2000) 36525.0))
+                 nuMO) )   )
 
 
 (defn eclipticToEquatorial "" [pos timeJDE mode]
@@ -139,9 +107,7 @@
   ) ;; init test OK Sep06
 
 
-
 ;; from o.s.a.SolarSystem
-
 (defn getGreenwichMeanSiderealTime  ""  [ timeJDU]
   (let [t (- timeJDU cn/JD_J2000)   T (/ t 36525)   T2 (* T T)   T3 (* T2 T)]
     (m/rmod
@@ -152,46 +118,40 @@
 
 (def SUN 0)   (def EARTH 2)
 
-(defn getHeliocentricPosition "" [planet timeJDE]
+(defn getHeliocentricPosition "" [^long planet timeJDE]
   (case planet
     0    {:latitude 0  :longitude 0  :radius 0}
-    2    (v/getHeliocentricPosition planet timeJDE) )
-  )
+    2    (v/getHeliocentricPosition planet timeJDE) )  )
 
 
-(defn getEclipticPosSimple "simple case" [planet timeJDE  flags]  
-  (let [earthPos  (getHeliocentricPosition EARTH  timeJDE)
-        otherPos  (getHeliocentricPosition planet timeJDE)
-        result    (translate2 otherPos earthPos)   ]   
-    result)
-  )
+(defn getEclipticPosSimple "simple case" [planet timeJDE  ]  
+  (translate2 (getHeliocentricPosition planet timeJDE)
+              (getHeliocentricPosition EARTH  timeJDE) )  )
+
 
 (defn nutateEclipticPosition3D "" [pos timeJDE] ;;assume NUTATED
   {:longitude (add_nonneg (:longitude pos) ((getNutation timeJDE NUTATED) 0))
    :latitude  (:latitude pos)
-   :radius    (:radius   pos) }
-  )
+   :radius    (:radius   pos) }  )
 
 
 (def ABERRATION 128)     (def NUTATION 4)     (def AbrrNut 132)
 (def L_D_Per_AU 0.005775518328)           (def LOW_PRECISION 1)
 
-(defn getEclipticPosition "ABERRATION ==> iter" [planet timeJDE flags]
-  (let [res1  (loop [i   (if (not= 0 (bit-and flags ABERRATION))  0  3)
-                     pos  (getEclipticPosSimple planet timeJDE flags) ]
-                (if (> i 2)
-                  pos
-                  (recur (inc i)
-                         (getEclipticPosSimple
-                          planet
-                          (- timeJDE (* L_D_Per_AU (:radius pos)))
-                          0 )  ) ) )
-        res2  (if (not= 0 (bit-and flags NUTATION))
+
+(defn getEclipticPosition  "ABERRATION ==> iter"  [planet timeJDE flags]
+  (let [zrng  (if (not= 0 (bit-and flags ABERRATION))   (range 2)   '() )
+        
+        res1  (reduce
+                 (fn [a-pos v]
+                   (getEclipticPosSimple
+                          planet (- timeJDE (* L_D_Per_AU (:radius a-pos))) )  )
+                 (getEclipticPosSimple planet timeJDE ) ;; pos
+                 zrng)            ] ;; '() ==> no iterations, use 'pos'
+
+    (if (not= 0 (bit-and flags NUTATION))
                 (nutateEclipticPosition3D res1 timeJDE)
-                res1)     ]
-;(when (not= 0 (bit-and flags NUTATION)) (println "gEP res1 res2"res1" "res2 " "timeJDE))
-    res2)
-  )
+                res1) )    )
 
 
 (defn getEquatorialPosition  " "  [planet timeJDE obs flags]
@@ -199,8 +159,7 @@
         oblMode      (if (not= 0 (bit-and flags NUTATION ))
                        NUTATED   MEAN_OBLIQUITY)
         pos          (eclipticToEquatorial eclipticPos timeJDE oblMode)]
-    pos)
-  )
+    pos)  )
 
 
 (defn getLocalHourAngle "SkyObserver" [timeJDU apparent obs]
@@ -225,21 +184,20 @@
   )  ;;limited test OK Mar21
 
 
-(defn getHorizontalPosition "" [planet timeJDU obs ]  ;; untested  TODO
+(defn getHorizontalPosition "" [planet timeJDU obs ]
   (let [flg   (bit-or ABERRATION LOW_PRECISION)  ;; ala wrapper meth.
-        pos   (getEquatorialPosition planet (UT_to_TDB timeJDU) obs flg)  ]
+        pos   (getEquatorialPosition planet (u/UT_to_TDB timeJDU) obs flg)  ]
     (equatorialToHorizontal3D pos timeJDU flg  obs)  )
   )
 
 
 (def SIGNED_HOUR_ANGLE 2048) ;0x0800
 
-(defn getHourAngle "SolarSystem" [planet timeJDU obs flags]
-  (let [pos    (getEquatorialPosition planet (UT_to_TDB timeJDU) obs flags )
+(defn getHourAngle "SolarSystem" [planet obs flags  timeJDU]
+  (let [pos    (getEquatorialPosition planet (u/UT_to_TDB timeJDU) obs flags )
         gLHA   (getLocalHourAngle timeJDU false obs)
         RA     (getRightAscension pos)
         HA     (if (not= 0 (bit-and flags SIGNED_HOUR_ANGLE))
                  (subtract  gLHA RA)
                  (subtract_nonneg gLHA RA))	]
-    HA)
-  ) ;; limited test OK Mar20
+    HA)  )

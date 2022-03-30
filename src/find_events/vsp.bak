@@ -1,14 +1,7 @@
 (ns find-events.vsp
-  (:import (java.io PushbackReader))
-  (:require [find-events.const   :as cn] )
-  (:require [find-events.mthu    :as m] )
-  (:require [clojure.java.io  :as cj])    )
-
-(def vsopc ;; allow access from  /resources --v  and inside uberjar
-  (with-open [r (PushbackReader. (cj/reader (cj/resource "data.clj")))]
-    (binding [*read-eval* false]
-      (read r)))  )
-
+	(:require [find-events.vsconst :as vcn] )
+	(:require [find-events.const   :as cn] )
+	(:require [find-events.mthu    :as m] ))
 
 (defn vinner "eval a single term" [t [A B C]]
     (* A (Math/cos (+ B (* C t))))  )
@@ -42,9 +35,9 @@
         t2 (* t t)   t3 (* t2 t)   t4 (* t2 t2)   t5 (* t3 t2)
         Tcol  [1.0 t t2 t3 t4 t5]
         
-        X  (reduce + (map * Tcol (map (partial seriesCalc t) ((vsopc p) 0) )))
-        Y  (reduce + (map * Tcol (map (partial seriesCalc t) ((vsopc p) 1) )))
-        Z  (reduce + (map * Tcol (map (partial seriesCalc t) ((vsopc p) 2) )))
+        X  (reduce + (map * Tcol (map (partial seriesCalc t) ((vcn/vsconst p) 0) )))
+        Y  (reduce + (map * Tcol (map (partial seriesCalc t) ((vcn/vsconst p) 1) )))
+        Z  (reduce + (map * Tcol (map (partial seriesCalc t) ((vcn/vsconst p) 2) )))
         tmppos {:longitude (m/rmod X cn/TwoPI)  :latitude Y  :radius Z} ;SP3D ctor
         pos   (convertVSOPToF5K tmppos timeJDE)        ]
    ; (println "x"X " y"Y " z"Z)
@@ -53,7 +46,3 @@
   )
 
 ;; removed unused fn
-
-
-;;(defn vcompare "check file-in v.s. literal vecs" []  (= vsopc vcn/vsconst) )
-
