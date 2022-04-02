@@ -43,19 +43,6 @@
 
 ;; from o.s.a.Ecliptic
 
-(defn NUinnerPsi "calc 1 term of psi,epsilon" [T D M M1 F Q  term]
-  (let [[fD fM fM1 fF fQ cs0 cs1 cc0 cc1]  term
-        arg    (+ (* D fD) (* M fM) (* M1 fM1) (* F fF) (* Q fQ))
-        dpsi   (* (m/sinDeg arg)  (+ cs0 (* cs1 T)))  ]
-    dpsi)  )
-
-(defn NUinnerEps "calc 1 term of psi,epsilon" [T D M M1 F Q  term]
-  (let [[fD fM fM1 fF fQ cs0 cs1 cc0 cc1]  term
-        arg    (+ (* D fD) (* M fM) (* M1 fM1) (* F fF) (* Q fQ))
-        deps   (* (m/cosDeg arg)  (+ cc0 (* cc1 T)))   ]
-    deps)  )
-
-
 (defn NU "calc psi,epsilon over all (63) terms" [MO T ]
   (let [T2  (* T T)      T3   (* T2 T)
         D   (+ 297.85036 (* T 445267.111480) (* T2 -0.0019142) (/ T3 189474.0))
@@ -63,20 +50,27 @@
         M1  (+ 134.96298 (* T 477198.867398) (* T2  0.0086972) (/ T3 56250.0))
         F   (+  93.27191 (* T 483202.017538) (* T2  0.0036825) (/ T3 327270.0))
         Q   (+ 125.04452 (* T  -1934.136261) (* T2  0.0020708) (/ T3 450000.0))
-        dpsi   (reduce + (map (partial NUinnerPsi T D M M1 F Q) n/terms) )
-        deps   (reduce + (map (partial NUinnerEps T D M M1 F Q) n/terms) )
+ 
+   ;; use destruc on param exposing contents af a single "term"
+   ;; access  T D M M1 F Q  as bound in (current) let
+   ;; Thus evaluate each term for psi,eps respectively, and sum.
+        [dpsi deps]
+        (reduce
+             (fn [accumv  [fD fM fM1 fF fQ cs0 cs1 cc0 cc1]]
+               (let [arg  (+ (* D fD) (* M fM) (* M1 fM1) (* F fF) (* Q fQ)) ]
+                 (mapv + accumv
+                       [ (* (m/sinDeg arg)  (+ cs0 (* cs1 T)))
+                         (* (m/cosDeg arg)  (+ cc0 (* cc1 T))) ] )  )   )
+             [0.0 0.0]  n/terms ) ;;init
+        
         rdpsi  (v/aAS2Rad (/ dpsi 10000.0))
-        rdeps  (v/aAS2Rad (/ deps 10000.0))  ]
-     ;; output full nutation based on inuut  MeanObliquity and series calc.
-;    (println "NU rdpsi"rdpsi )
+        rdeps  (v/aAS2Rad (/ deps 10000.0))    ]
+ ;; full nutation based on input  MeanObliquity and series calc.
     [ rdpsi rdeps (+ (MO 2) rdeps)] )  )
 
 
-(def NUTATED 0)   (def MEAN_OBLIQUITY 1)
-
-(defn getNutationMO  "subset -- MEAN_OBLIQUITY only !"  [timeJDE]
-  (let [T      (/ (- timeJDE cn/JD_J2000) 36525.0)
-        coeff  [-4680.93 -1.55 1999.25 -51.38 -249.67
+(defn getNutationMO  " MEAN_OBLIQUITY only "  [T ]
+  (let [coeff  [-4680.93 -1.55 1999.25 -51.38 -249.67
                   -39.05  7.12   27.87   5.79    2.45]
         [e U]  (reduce  (fn [[ae aU] v]
                           [ (+ ae (/ (* v aU ) 3600.0) )   (* aU aU) ]   )
@@ -84,12 +78,17 @@
     [0.0  0.0  (* cn/D2Rad e)]  )   )
 
 
-(defn getNutation "only modes: MEAN_OBLIQUITY NUTATED"  [timeJDE mode]
-  (let [nuMO   (getNutationMO timeJDE) ] ;; always do MEAN_OBLIQUITY calc.
-    (if (= mode NUTATED)
-                 (NU  nuMO  (/ (- timeJDE cn/JD_J2000) 36525.0))
-                 nuMO) )   )
+(defn getNutation ""  [timeJDE mode]
+  (let [T      (/ (- timeJDE cn/JD_J2000) 36525.0) ]
+    (case mode
+      2    [0.0  0.0  (* cn/D2Rad 23.43929111) ]      ;; 2: J2000
+      1    (getNutationMO T)                          ;; 1: MEAN_OBLIQUITY
+      0    (->  (getNutationMO T)  (NU  T)) )  )   )  ;; 0: NUTATED
 
+
+
+
+(def NUTATED 0)   (def MEAN_OBLIQUITY 1)
 
 (defn eclipticToEquatorial "" [pos timeJDE mode]
   (let [nutation  (getNutation timeJDE mode)
@@ -184,11 +183,13 @@
   )  ;;limited test OK Mar21
 
 
-(defn getHorizontalPosition "" [planet timeJDU obs ]
-  (let [flg   (bit-or ABERRATION LOW_PRECISION)  ;; ala wrapper meth.
-        pos   (getEquatorialPosition planet (u/UT_to_TDB timeJDU) obs flg)  ]
-    (equatorialToHorizontal3D pos timeJDU flg  obs)  )
-  )
+(defn getHorizontalPosition "arity overload "
+   ([planet timeJDU obs ]
+      (getHorizontalPosition planet timeJDU obs ;; v-- wrapper in orig java
+                             (bit-or ABERRATION LOW_PRECISION)) )
+   ([planet timeJDU obs flg ]
+      (-> (getEquatorialPosition planet (u/UT_to_TDB timeJDU) obs flg)
+          (equatorialToHorizontal3D   timeJDU flg  obs)) )   )
 
 
 (def SIGNED_HOUR_ANGLE 2048) ;0x0800
