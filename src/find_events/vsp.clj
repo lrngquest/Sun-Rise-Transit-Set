@@ -1,13 +1,14 @@
 (ns find-events.vsp
-  (:import (java.io PushbackReader))
-  (:require [find-events.const   :as cn] )
-  (:require [find-events.mthu    :as m] )
-  (:require [clojure.java.io  :as cj])    )
+  (:require [find-events.const   :as cn]  [find-events.mthu    :as m]  )
+;;  (:require [find-events.vsconst :as vc] )
+  (:require [clojure.java.io  :as cj] [clojure.edn  :as edn])    )
 
-(def vsopc ;; allow access from  /resources --v  and inside uberjar
-  (with-open [r (PushbackReader. (cj/reader (cj/resource "data.clj")))]
-    (binding [*read-eval* false]
-      (read r)))  )
+
+;; Works for development from project dir with  clojure  or  bb.
+(def vsopc (edn/read-string (slurp (cj/file "resources/data.clj")) ) )
+
+;;If packaging as an uberjar replace with the following:
+;;  (def vsopc (edn/read-string (slurp (cj/resource "data.clj")) )  )
 
 
 (defn vinner "eval a single term" [t [A B C]]
@@ -52,8 +53,9 @@
     pos)
   )
 
-;; removed unused fn
 
 
-;;(defn vcompare "check file-in v.s. literal vecs" []  (= vsopc vcn/vsconst) )
+;;  uncomment   (:require [find-events.vsconst :as vc] )  above and :
+;;(defn -main "" []  (println "= vsconst " (= vsopc vc/vsconst) ) )
+
 
