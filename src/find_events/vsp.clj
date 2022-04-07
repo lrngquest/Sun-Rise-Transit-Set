@@ -4,11 +4,10 @@
   (:require [clojure.java.io  :as cj] [clojure.edn  :as edn])    )
 
 
-;; Works for development from project dir with  clojure  or  bb.
-(def vsopc (edn/read-string (slurp (cj/file "resources/data.clj")) ) )
+;; Reading edn works with  bb  as well if classpath is extended !
+;;   $ bb -cp src:resources  -m find-events.core
 
-;;If packaging as an uberjar replace with the following:
-;;  (def vsopc (edn/read-string (slurp (cj/resource "data.clj")) )  )
+(def vsopc (edn/read-string (slurp (cj/resource "data.clj")) )  )
 
 
 (defn vinner "eval a single term" [t [A B C]]
