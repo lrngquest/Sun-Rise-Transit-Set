@@ -10,10 +10,9 @@
 (def dflt-obs {:longitude -1.6275195274847123  :latitude 0.7848169687565342
           :TZoffs -360    :TZ "US-CENTRAL"  :loc "MSP."} ) ;; TZoffs minutes
 
-(defn fmdhm "" [v]
-  (format "%2d-%02d %2d:%02d  " (:month v) (:day v) (:hour v) (:minute v) ))
 (defn fhm  "" [v] (format "%2d:%02d " (:hour v) (:minute v)) )
-
+(defn fmd "month day only" [v] (format "%2d-%02d" (:month v) (:day v)) )
+(defn fmdhm "" [v] (format "%s %s  " (fmd v) (fhm v) ))
 
 ;;2018    3-20 11:15    6-21  5:07    9-22 20:54   12-21 16:22
 ;;2018	Mar 20 11:15d	Jun 21 05:07d	Sep 22 20:54d	Dec 21 16:22
@@ -40,7 +39,7 @@
         tt  (ef/getTransitTimes ss/SUN y m d obs)
         [dlh dlm]  (dl-hm (rs 1) (rs 0))  ]  ;; daylight hrs mins
     (println (fmdhm (rs 0)) (fhm tt) (fhm (rs 1))
-             (format " %10.5f  %9.5f (%9.5f)  %2dh %2dm"
+             (format " %10.5f  %9.5f (%9.5f)  %2dh %2dm  "
                      (ss/getLongitudeDeg (ss/getHorizontalPosition
                                          ss/SUN (:val (rs 0)) obs))
                      (ss/getAltDeg (ss/getHorizontalPosition
@@ -49,7 +48,7 @@
                                          ss/SUN (:val tt) obs ss/AbrrNut))
                      ;;could add set azi (...%9.5f)
 ;;(ss/getLongitudeDeg (ss/getHorizontalPosition ss/SUN (:val (rs 1)) obs))
-                     dlh dlm))) )
+                     dlh dlm)  (fmd (rs 0)))  ) )  ;; dup m-day at EOL
 
 
 (defn isLeapYear  " 1 ==> leap year"  [year]

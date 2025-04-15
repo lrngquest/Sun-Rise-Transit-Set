@@ -1,9 +1,7 @@
 (ns find-events.efx
-	(:require [find-events.const :as cn] ) 
-	(:require [find-events.mthu  :as m] )
-	(:require [find-events.ssetc :as ss] )
-        (:require [find-events.dates :as da] )
-        (:require [find-events.ut2tdb :as u]) )
+  (:require [find-events.const :as cn] [find-events.mthu  :as m]
+            [find-events.ssetc :as ss] [find-events.dates :as da]
+            [find-events.ut2tdb :as u] )  )
 
 
 (def getDSTfacts
@@ -83,17 +81,15 @@
         tAlp        (times-vals->vofv times values)     ;; #4   6x4  ala
     ;;  tAlp [ [t0 a0 t1 a1] [t1 a1 t2 a2] [t2 a2 t3 a3]
     ;;         [t3 a3 t4 a4] [t4 a4 t5 a5] [t5 a5 t6 a6]  ]
-
-        fltrd-tAlp  (filter ffnRS tAlp)
+                                                              ;; 2025Jan28
+        fltv-tAlp   (filterv ffnRS tAlp)  ;; [[ta aa  tb ab]  [tc ac  td ad]]
         
-        rise-ntrvl  (first fltrd-tAlp)
-        eventTime   (getXAtZ zsfRS tol maxI  rise-ntrvl)
-        riseTime    (* 24.0 (- eventTime startOfDay))
+        eventTime1  (getXAtZ zsfRS tol maxI  (fltv-tAlp 0)) ;; was rise-ntrvl
+        riseTime    (* 24.0 (- eventTime1 startOfDay))
         rt (createEventAtHourOffset
-            year month day minsInDay riseTime "rise"   eventTime obs)
+            year month day minsInDay riseTime "rise"   eventTime1 obs)
 
-        set-ntrvl   (last fltrd-tAlp)
-        eventTime2  (getXAtZ zsfRS tol maxI  set-ntrvl)
+        eventTime2  (getXAtZ zsfRS tol maxI  (fltv-tAlp 1)) ;; was set-ntrvl
         setTime     (* 24.0 (- eventTime2 startOfDay))
         st (createEventAtHourOffset
             year month day minsInDay setTime "set" eventTime2 obs)   ]
@@ -113,8 +109,8 @@
         tHap            (times-vals->vofv times values)  ;; #4   5x4
 
         ;; filter checking e.g   [ _ ha0 _ ha1] ... wrt 0.0    ;; #3
-        trns-ntrvl      (first (filter #(and(<= (% 1) 0.0) (> (% 3) 0.0)) tHap))
-        eventTime       (getXAtZ getHourAngl 0.0001 8  trns-ntrvl)
+        fltv-trns       (filterv #(and(<= (% 1) 0.0) (> (% 3) 0.0)) tHap) ;;1-28
+        eventTime       (getXAtZ getHourAngl 0.0001 8  (fltv-trns 0) )
         
         ;;ASSERT (>= (getHorizontalPosition ...)  minAltRad) ==>always accepted
 
@@ -160,9 +156,8 @@
   (mapv (partial iterESdays obs year) '(3 6 9 12) )  )
 
 
+;;      2021 Dec  changes
 
-;; 2021 Dec  changes
-;;
 ;; #1  Replaced the use of a param-reordering-fn and a use of (partial...)
 ;;  with a single function literal (May relyi on references to bound
 ;;  ids in a surrounding (let...) ) to provide the required
