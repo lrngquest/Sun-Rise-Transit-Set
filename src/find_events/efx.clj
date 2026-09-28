@@ -143,7 +143,7 @@
         eventTm    (* 24.0 (- val startOfDay) )
         es         (if (odd? m) "equinox"  "solstice" )    ]
     (if  (and (<= lowLong angle) (< angle highLong))
-      (createEventAtHourOffset y m d minsInDay eventTm es 0 obs)  "") )  )
+      (createEventAtHourOffset y m d minsInDay eventTm es val obs)  "") )  )
 
 
 (defn iterESdays [obs year month]
