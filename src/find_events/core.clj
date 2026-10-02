@@ -86,7 +86,7 @@
           [y m d]  (range no) )   )  )
 
 
-(declare print-daylight-progression vv  ESdetail)
+(declare  ESdetail)
 
 (defn clix "enhanced cli -- short forms for frequent used cases" [va xobs]
   (case (count va)   ;; (empty)   y...
@@ -101,9 +101,7 @@
              (printES cy xobs)   (printf ":loc %s\n" (:loc xobs))  )
                      
            (when (= 1 (va 1))
-             (print-daylight-progression cy xobs vv )
-             (printf "\n\n" )
-             (ESdetail cy xobs) )
+             (ESdetail cy xobs)  (printf "\n\n" ) )
            )
             
       3  (let [[y day weeks] va] ;; a-day-line-per-week  "almanac" case
@@ -130,22 +128,6 @@
     (clix va z-obs)
     ;;(printf ":loc %s\n" (:loc z-obs))
     )  )
-
-
-(def vv [[1 8  12 2]  [2 5   11 4]  [2 26  10 14]  [3 17  9 25]
-         [4 5   9 5]  [4 25  8 16]  [5 19   7 23]] )
-
-(defn  print-daylight-progression "" [y obs vx]
-  (printf"year %d   Approximate even hour day lengths\n" y)
-
-  (doseq [mdmd vx]
-    (let [[m1 d1 m2 d2]  mdmd
-          [Lrz Lst]    (ef/getRiseAndSetTimes ss/SUN y m1 d1  obs)
-          [rrz rst]    (ef/getRiseAndSetTimes ss/SUN y m2 d2  obs)
-          [dLh1 dLm1]  (dlhm2 Lst Lrz)
-          [dLh2 dLm2]  (dlhm2 rst rrz)       ]
-      (printf "%2d-%02d  %2dh %02dm    %2dh %02dm  %2d-%02d\n"
-              m1 d1  dLh1 dLm1  dLh2 dLm2  m2 d2) )  )  )  ;; let,doseq,fn
 
 
 (def NUTATION 4)  (def HIGH_PRECISION 2)  (def ABERRATION 128)
