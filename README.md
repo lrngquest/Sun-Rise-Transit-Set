@@ -42,7 +42,7 @@ May be run from dir containing  /src  with Clojure, or using released bb jar.
 
 - no args         ==>  rise,set ... for two-weeks around today's date
 - 2 args: year 0  ==>  ditto for 20th of each month; equinox/solstice date,time
-  2 args: year 1  ==>  equinox & solstice details
+- 2 args: year 1  ==>  equinox & solstice details
 - 3 args: year start-day num-of-weeks  ==> rise,set,transit... for each week
 - 4 args: year month day num-of-days   ==> ditto for days requested
 
